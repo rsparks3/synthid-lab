@@ -1,0 +1,6 @@
+# torch is installed separately (see README: NGC container or cu130 wheels on DGX Spark, CPU wheels locally)
+transformers>=4.46
+accelerate
+fastapi
+uvicorn[standard]
+pydantic>=2

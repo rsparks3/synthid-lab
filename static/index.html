@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SynthID Detector</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --card: #ffffff; --ink: #1b1f24; --muted: #5c6670; --line: #d9dee3;
+    --accent: #2457c5; --good: #1f8a4c; --warn: #c48a00; --bad: #c0392b;
+    --heat0: #e8eef8; --heat1: #ffb020;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #0f1216; --card: #171b21; --ink: #e8ebef; --muted: #98a2ad; --line: #2b323b;
+      --accent: #7aa2ff; --good: #4cc27a; --warn: #e6b23a; --bad: #ef6a5a;
+      --heat0: #1f2733; --heat1: #ffb020;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #0f1216; --card: #171b21; --ink: #e8ebef; --muted: #98a2ad; --line: #2b323b;
+    --accent: #7aa2ff; --good: #4cc27a; --warn: #e6b23a; --bad: #ef6a5a;
+    --heat0: #1f2733; --heat1: #ffb020;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 16px/1.5 system-ui, -apple-system, Segoe UI, Roboto, sans-serif; }
+  main { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  h1 { font-size: 1.6rem; margin: 0 0 4px; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .card { background: var(--card); border: 1px solid var(--line); border-radius: 12px; padding: 18px; margin-bottom: 18px; }
+  textarea { width: 100%; min-height: 160px; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--ink); font: inherit; resize: vertical; }
+  button { background: var(--accent); color: #fff; border: 0; border-radius: 8px; padding: 10px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+  button:disabled { opacity: .5; cursor: wait; }
+  .row { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-top: 12px; }
+  .verdict { font-size: 1.25rem; font-weight: 700; padding: 6px 14px; border-radius: 999px; display: inline-block; }
+  .v-watermarked { background: color-mix(in srgb, var(--bad) 18%, transparent); color: var(--bad); }
+  .v-weak { background: color-mix(in srgb, var(--warn) 18%, transparent); color: var(--warn); }
+  .v-not_watermarked { background: color-mix(in srgb, var(--good) 18%, transparent); color: var(--good); }
+  .v-too_short { background: color-mix(in srgb, var(--muted) 18%, transparent); color: var(--muted); }
+  .stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-top: 14px; }
+  .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
+  .stat b { display: block; font-size: 1.3rem; }
+  .stat span { color: var(--muted); font-size: .85rem; }
+  .gauge { position: relative; height: 14px; border-radius: 7px; background: linear-gradient(90deg, var(--good), var(--warn) 50%, var(--bad)); margin: 18px 0 6px; }
+  .gauge i { position: absolute; top: -5px; width: 4px; height: 24px; background: var(--ink); border-radius: 2px; transform: translateX(-2px); transition: left .4s; }
+  .gauge-labels { display: flex; justify-content: space-between; color: var(--muted); font-size: .8rem; }
+  .heat { line-height: 1.9; margin-top: 12px; word-wrap: break-word; }
+  .heat span { border-radius: 3px; padding: 1px 0; }
+  .heat .unscored { opacity: .55; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--muted); }
+  label.chk { display: inline-flex; gap: 6px; align-items: center; }
+  .small { color: var(--muted); font-size: .85rem; }
+  pre.out { white-space: pre-wrap; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .err { color: var(--bad); }
+</style>
+</head>
+<body>
+<main>
+  <h1>SynthID Text Detector</h1>
+  <p class="sub">Paste text below. The detector knows the secret watermark key and checks whether the text still carries the watermark.</p>
+
+  <section class="card">
+    <textarea id="text" placeholder="Write or paste the story here..."></textarea>
+    <div class="row">
+      <button id="detect">Check for watermark</button>
+      <span class="small" id="info"></span>
+    </div>
+    <div id="result" hidden>
+      <div class="row">
+        <span id="verdict" class="verdict"></span>
+        <span id="verdict-note" class="small"></span>
+      </div>
+      <div class="gauge"><i id="needle"></i></div>
+      <div class="gauge-labels"><span>no watermark (z = 0)</span><span>z = 2</span><span>z = 4</span><span>strong (z &ge; 8)</span></div>
+      <div class="stats">
+        <div class="stat"><b id="s-mean"></b><span>mean g-value (0.50 = chance)</span></div>
+        <div class="stat"><b id="s-z"></b><span>z-score</span></div>
+        <div class="stat"><b id="s-p"></b><span>p-value (one-sided)</span></div>
+        <div class="stat"><b id="s-n"></b><span>tokens scored / total</span></div>
+      </div>
+      <details open>
+        <summary>Per-token watermark evidence (brighter = more watermark-like)</summary>
+        <div id="heat" class="heat"></div>
+      </details>
+    </div>
+  </section>
+
+  <details class="card">
+    <summary>Instructor: generate a watermarked paraphrase</summary>
+    <p class="small">Sends the story to the hosted LLM. Loads the model on first use (can take a minute).</p>
+    <textarea id="story" placeholder="Paste the original ~50 word story..."></textarea>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="wm" checked> apply SynthID watermark</label>
+      <input id="token" type="password" placeholder="admin token (if set)" style="padding:8px;border-radius:8px;border:1px solid var(--line);background:var(--bg);color:var(--ink)">
+      <button id="gen">Paraphrase</button>
+    </div>
+    <pre class="out" id="gen-out" hidden></pre>
+    <div class="row"><button id="copy" hidden>Copy into detector</button></div>
+  </details>
+</main>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const notes = {
+  watermarked: "Strong statistical evidence this text was generated with the known SynthID key.",
+  weak: "Some signal, but not conclusive. Light edits of watermarked text often land here.",
+  not_watermarked: "Indistinguishable from unwatermarked text with this key.",
+  too_short: "Not enough scorable tokens. Paste a longer passage (roughly 30+ words).",
+};
+const labels = { watermarked: "Watermark detected", weak: "Weak signal", not_watermarked: "No watermark", too_short: "Too short" };
+
+fetch("/api/info").then(r => r.json()).then(i => {
+  $("info").textContent = `model ${i.model_id} · ngram ${i.ngram_len} · depth ${i.depth}`;
+}).catch(() => {});
+
+function render(d) {
+  $("result").hidden = false;
+  const v = $("verdict");
+  v.className = "verdict v-" + d.verdict;
+  v.textContent = labels[d.verdict] || d.verdict;
+  $("verdict-note").textContent = notes[d.verdict] || "";
+  const pct = Math.max(0, Math.min(100, (d.z / 8) * 100));
+  $("needle").style.left = pct + "%";
+  $("s-mean").textContent = d.mean_g.toFixed(3);
+  $("s-z").textContent = d.z.toFixed(2);
+  $("s-p").textContent = d.p_value < 1e-4 ? d.p_value.toExponential(1) : d.p_value.toFixed(4);
+  $("s-n").textContent = `${d.n_scored} / ${d.n_tokens}`;
+  const heat = $("heat");
+  heat.innerHTML = "";
+  d.tokens.forEach((tok, i) => {
+    const s = document.createElement("span");
+    s.textContent = tok;
+    const g = d.token_scores[i];
+    if (g === null || g === undefined) {
+      s.className = "unscored";
+    } else {
+      // map 0.5 -> transparent, 1.0 -> full heat; below 0.5 stays cool
+      const a = Math.max(0, Math.min(1, (g - 0.5) * 2));
+      s.style.background = `color-mix(in srgb, var(--heat1) ${Math.round(a * 85)}%, var(--heat0))`;
+      s.title = `g = ${g.toFixed(2)}`;
+    }
+    heat.appendChild(s);
+  });
+}
+
+$("detect").onclick = async () => {
+  const text = $("text").value.trim();
+  if (!text) return;
+  $("detect").disabled = true;
+  try {
+    const r = await fetch("/api/detect", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ text }) });
+    render(await r.json());
+  } catch (e) {
+    $("verdict-note").textContent = "Request failed: " + e;
+  } finally {
+    $("detect").disabled = false;
+  }
+};
+
+$("gen").onclick = async () => {
+  const story = $("story").value.trim();
+  if (!story) return;
+  $("gen").disabled = true;
+  $("gen-out").hidden = false;
+  $("gen-out").textContent = "Generating (first call loads the model)...";
+  try {
+    const r = await fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "X-Admin-Token": $("token").value },
+      body: JSON.stringify({ story, watermark: $("wm").checked }),
+    });
+    const d = await r.json();
+    if (!r.ok) throw new Error(d.detail || r.status);
+    $("gen-out").textContent = d.text + `\n\n[self-check: z = ${d.detection.z}, mean g = ${d.detection.mean_g}, verdict = ${d.detection.verdict}]`;
+    $("copy").hidden = false;
+    $("copy").onclick = () => { $("text").value = d.text; $("detect").click(); window.scrollTo({ top: 0, behavior: "smooth" }); };
+  } catch (e) {
+    $("gen-out").textContent = "Error: " + e.message;
+  } finally {
+    $("gen").disabled = false;
+  }
+};
+</script>
+</body>
+</html>
