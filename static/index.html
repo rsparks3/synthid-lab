@@ -217,7 +217,10 @@
         <select id="examples"><option value="">-- choose --</option></select>
         <span class="small" id="model-status"></span>
       </div>
-      <textarea id="story" placeholder="Paste or write a short story (~50 words)..." style="margin-top:10px"></textarea>
+      <label class="small" for="system" style="display:block;margin-top:10px">System message (the instructions Qwen gets; the watermark is applied at sampling time, not here). <code>{words}</code> and <code>{how}</code> are filled in from the length slider. The default comes from <code>data/prompt.txt</code>.</label>
+      <textarea id="system" style="min-height:110px"></textarea>
+      <label class="small" for="story" style="display:block;margin-top:10px">Story (sent as the user message)</label>
+      <textarea id="story" placeholder="Paste or write a short story (~50 words)..."></textarea>
       <div class="small count" id="story-count"></div>
       <div class="knobs">
         <div class="knob"><label class="chk"><input type="checkbox" id="wm" checked> <b>Apply SynthID watermark</b></label>
@@ -239,6 +242,7 @@
           <div class="small" id="gen-check"></div>
           <button id="to-detector" class="ghost">Send to detector again</button>
         </div>
+        <details class="small"><summary>System message sent</summary><pre id="gen-system" style="white-space:pre-wrap;margin:6px 0 0"></pre></details>
         <p class="small" style="margin-bottom:4px">The output has been copied into the detector above. <b>Click any token</b> to see the tournament that chose it, then use <span class="tok">←</span> <span class="tok">→</span> to step through tokens:</p>
         <div id="chips" class="chips card" style="margin-bottom:12px"></div>
         <div id="tourney" class="card" hidden></div>
@@ -302,6 +306,7 @@ function heatColor(g) {
 fetch("/api/info").then(r => r.json()).then(i => {
   $("info").textContent = `key depth ${i.depth} · n-gram ${i.ngram_len} · tokenizer ${i.model_id}`;
   $("model-name").textContent = i.model_id;
+  if (i.system_prompt) $("system").value = i.system_prompt;
   ngram = i.ngram_len; depth = i.depth;
   const d = i.defaults;
   $("temp").value = d.temperature; $("topk").value = d.top_k; $("len").value = d.words;
@@ -612,13 +617,14 @@ $("gen").onclick = async () => {
     const r = await fetch("/api/generate", {
       method: "POST", headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ story, watermark: $("wm").checked, seed, temperature: Number($("temp").value),
-                             top_k: Number($("topk").value), words: Number($("len").value) }),
+                             top_k: Number($("topk").value), words: Number($("len").value), system: $("system").value }),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail ? JSON.stringify(d.detail) : r.status);
     lastGen = d;
     $("gen-status").textContent = `Done in ${((Date.now() - t0) / 1000).toFixed(1)} s · ${d.steps.length} tokens`;
     const det = d.detection;
+    $("gen-system").textContent = d.system;
     $("gen-check").innerHTML = `${d.watermark ? "Watermarked" : "<b>Unwatermarked</b>"} output · detector self-check: <b>z = ${det.z.toFixed(2)}</b> (${labels[det.verdict]})`;
     $("gen-result").hidden = false;
     renderChips(d);

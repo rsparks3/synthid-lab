@@ -20,8 +20,8 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import DATA_DIR, ROOT, load_config
-from .watermark import Detector, Generator
+from .config import DATA_DIR, ROOT, load_config, load_prompt
+from .watermark import Detector, Generator, system_message
 
 STATIC_DIR = ROOT / "static"
 MODE = os.environ.get("SYNTHID_MODE", "full")            # "full" | "detect"
@@ -68,6 +68,7 @@ class GenerateRequest(BaseModel):
     temperature: float | None = Field(default=None, ge=0.1, le=2.0)
     top_k: int | None = Field(default=None, ge=2, le=200)
     words: int | None = Field(default=None, ge=10, le=150)
+    system: str | None = Field(default=None, max_length=4000)   # overrides data/prompt.txt for this call
 
 
 @app.get("/")
@@ -82,6 +83,7 @@ def info() -> dict:
         "ngram_len": cfg.ngram_len,
         "depth": cfg.depth,
         "mode": MODE,
+        "system_prompt": load_prompt(),
         "generator_loaded": _generator is not None,
         "generator_loading": _gen_lock.locked() and _generator is None,
         "defaults": {"temperature": cfg.temperature, "top_k": cfg.top_k, "max_new_tokens": cfg.max_new_tokens,
@@ -126,14 +128,16 @@ def generate(req: GenerateRequest, x_admin_token: str = Header(default="")) -> d
     gen = get_generator()
     temperature = req.temperature or cfg.temperature
     top_k = req.top_k or cfg.top_k
+    words = req.words or cfg.target_words
+    system = req.system.strip() if req.system and req.system.strip() else None
     with _gen_lock:   # one generation at a time; plenty for a classroom
         prompt_ids, ids = gen.generate(req.story, watermark=req.watermark, seed=req.seed,
                                        max_new_tokens=req.max_new_tokens, temperature=temperature, top_k=top_k,
-                                       words=req.words)
+                                       words=words, system=system)
         steps = gen.tournament(prompt_ids, ids, temperature=temperature, top_k=top_k)
     text = gen.tokenizer.decode(ids, skip_special_tokens=True).strip()
     return {
         "text": text, "watermark": req.watermark, "detection": detector.score(text).as_dict(),
-        "steps": steps, "params": {"temperature": temperature, "top_k": top_k, "seed": req.seed,
-                   "words": req.words or cfg.target_words},
+        "system": system_message(req.story, words, system),   # the exact system message the model got
+        "steps": steps, "params": {"temperature": temperature, "top_k": top_k, "seed": req.seed, "words": words},
     }

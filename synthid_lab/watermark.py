@@ -32,19 +32,22 @@ from transformers import (
     SynthIDTextWatermarkLogitsProcessor,
 )
 
-from .config import LabConfig
+from .config import LabConfig, load_prompt
 
-# Small models write roughly as many words as the input unless told explicitly to expand or condense,
-# so the instruction depends on the target. Generator.generate() also enforces the length.
-# Detection power grows with sqrt(tokens): short targets make the watermark hard to detect.
-PARAPHRASE_SYSTEM = (
-    "You are a creative editor. Retell the user's short story in your own words in about {words} "
-    "words{how}. Keep the same characters and point of view, but change the wording and sentence "
-    "structure throughout. Output only the retold story, no title, no preamble."
-)
+# The system prompt lives in data/prompt.txt (editable there or per request). It may contain {words},
+# the target length, and {how}, which becomes one of the phrases below: small models write roughly as
+# many words as the input unless told explicitly to expand or condense. Generator.generate() also
+# enforces the length. Detection power grows with sqrt(tokens): short targets are hard to detect.
 _EXPAND = ", keeping every plot point and adding sensory detail and inner thoughts to reach the length"
 _CONDENSE = ", condensing it to its essential plot points"
 _SENTENCE_END = (".", "!", "?", '"', "'", "\u201d", "\u2019")
+
+
+def system_message(story: str, words: int, template: str | None = None) -> str:
+    """Fill the prompt template's {words} and {how} placeholders (plain replace, so other braces are safe)."""
+    n = len(story.split())
+    how = _EXPAND if words > 1.2 * n else _CONDENSE if words < 0.8 * n else ""
+    return (template or load_prompt()).replace("{words}", str(words)).replace("{how}", how)
 
 
 class _StopAtLength(StoppingCriteria):
@@ -228,11 +231,17 @@ class Generator:
         self.wm_config = make_watermark_config(cfg)
         self.detector = Detector(cfg, tokenizer=self.tokenizer, device="cpu")
 
-    def _prompt_ids(self, story: str, words: int) -> torch.Tensor:
-        n = len(story.split())
-        how = _EXPAND if words > 1.2 * n else _CONDENSE if words < 0.8 * n else ""
-        messages = [{"role": "system", "content": PARAPHRASE_SYSTEM.format(words=words, how=how)},
-                    {"role": "user", "content": story}]
+    def build_messages(self, story: str, words: int, system: str | None = None) -> list[dict[str, str]]:
+        """The exact chat sent to the LLM. The watermark is NOT in here; it is applied at sampling time."""
+        return [{"role": "system", "content": system_message(story, words, system)}, {"role": "user", "content": story}]
+
+    def render_prompt(self, story: str, words: int, system: str | None = None) -> str:
+        """The raw string the model actually sees, after the chat template is applied."""
+        return self.tokenizer.apply_chat_template(self.build_messages(story, words, system),
+                                                  add_generation_prompt=True, tokenize=False)
+
+    def _prompt_ids(self, story: str, words: int, system: str | None = None) -> torch.Tensor:
+        messages = self.build_messages(story, words, system)
         enc = self.tokenizer.apply_chat_template(
             messages, add_generation_prompt=True, return_tensors="pt", return_dict=True
         )
@@ -251,12 +260,16 @@ class Generator:
     @torch.no_grad()
     def generate(self, story: str, watermark: bool = True, seed: int | None = None,
                  max_new_tokens: int | None = None, temperature: float | None = None,
-                 top_k: int | None = None, words: int | None = None) -> tuple[torch.Tensor, list[int]]:
-        """Returns (prompt_ids, generated token ids without the trailing EOS)."""
+                 top_k: int | None = None, words: int | None = None,
+                 system: str | None = None) -> tuple[torch.Tensor, list[int]]:
+        """Returns (prompt_ids, generated token ids without the trailing EOS).
+
+        `system` overrides the prompt template in data/prompt.txt for this call.
+        """
         if seed is not None:
             torch.manual_seed(seed)
         words = words or self.cfg.target_words
-        input_ids = self._prompt_ids(story, words)
+        input_ids = self._prompt_ids(story, words, system)
         # Hard cap in proportion to the target (English prose is ~1.3 tokens per word), leaving room
         # for the stopping criterion to reach the end of the current sentence.
         cap = min(max_new_tokens or self.cfg.max_new_tokens, int(words * 1.6) + 24)
@@ -294,8 +307,8 @@ class Generator:
         return ids
 
     def paraphrase(self, story: str, watermark: bool = True, seed: int | None = None,
-                   max_new_tokens: int | None = None) -> str:
-        _, ids = self.generate(story, watermark=watermark, seed=seed, max_new_tokens=max_new_tokens)
+                   max_new_tokens: int | None = None, system: str | None = None) -> str:
+        _, ids = self.generate(story, watermark=watermark, seed=seed, max_new_tokens=max_new_tokens, system=system)
         return self.tokenizer.decode(ids, skip_special_tokens=True).strip()
 
     @torch.no_grad()
