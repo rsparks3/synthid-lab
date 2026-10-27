@@ -1,15 +1,54 @@
-# SynthID-Text classroom lab
+# How SynthID works: a live SynthID-Text watermark detector and classroom lab
 
-A self-hosted SynthID-Text setup for a "can the detector still see the watermark after *you* rewrite it?" activity.
+**A self-hosted, open-source lab for exploring Google DeepMind's SynthID-Text watermark for
+AI-generated text.** It pairs a watermarked LLM paraphraser with a real-time detector so you can
+watch, token by token, how the watermark is written into text and how quickly it fades as the text is
+edited. Built on the production SynthID-Text implementation in Hugging Face `transformers`.
 
-* **Generator** (DGX Spark): an open LLM paraphrases your short stories with Google's SynthID-Text
-  watermark, using a secret key set that you control.
-* **Detector** (anywhere): a web page where participants paste text. The server scores it against the
-  secret key and shows a verdict, a z-score, and a per-token heatmap of watermark evidence.
+## What this repository explores
 
-Everything is built on the production SynthID-Text implementation inside Hugging Face `transformers`
-(`SynthIDTextWatermarkingConfig` / `SynthIDTextWatermarkLogitsProcessor`). No training is needed: the
-detector is the paper's "weighted mean" g-value test, which only needs the tokenizer and the keys.
+SynthID is Google DeepMind's family of watermarking tools for AI-generated content. SynthID-Text, the
+text variant, was published in *Nature* in 2024 and released as open source [1, 2]. It is the
+watermark Google applies to text produced by Gemini [3]. Unlike "AI detectors" that try to guess
+whether prose sounds machine-written, SynthID-Text is a **key-based** scheme: a secret key nudges the
+language model's word choices at generation time, and only someone holding the same key can later
+test for that nudge [1]. The text reads normally and the model's knowledge, prompt and meaning are
+untouched; the signal lives entirely in *which exact tokens* were sampled.
+
+That design raises the question this repository is built around: **how tightly is the watermark tied
+to the content of the text?** SynthID-Text scores each token from a hash of the few tokens before it
+(an n-gram) and the key [1]. So the watermark is a property of exact token sequences, not of meaning
+or style. Copy the output verbatim and the detector is certain. Swap a handful of words and the
+evidence weakens. Rewrite the passage in your own words and the watermark is gone, even though the
+story is the same, because almost none of the original n-grams survive. This is the known
+limitation of all n-gram and sampling-based text watermarks, and of statistical AI-text detection in
+general, against paraphrasing [4, 5, 6, 7], and it is exactly what the lab lets participants
+experience for themselves.
+
+To make that concrete, the repository provides a **live tool** that shows text identification
+changing in real time:
+
+* A **detector page** that re-scores whatever you type as you type it, placing the z-score on the
+  bell curve of what unwatermarked text scores, and coloring every token by whether its key-derived
+  "coin flip" favored the watermark. You can watch the verdict move from "watermark detected" to
+  "weak" to "no watermark" as you edit a passage, and see which tokens still carry the signal.
+* A **wrong-key test** that scores the same text with a random key, showing that the detector finds
+  the *key*, not "AI-ness".
+* A **generator view** that paraphrases short stories with or without the watermark and exposes the
+  tournament sampling step for every token: the model's own probabilities, how the key reweighted
+  them, and the g-value bits per key layer [1].
+* An **explainer tab** that walks participants from tokens and n-grams through tournament sampling to
+  the z-score, with a suggested lesson flow.
+
+Everything runs on your own hardware with keys you control. The generator needs a GPU (it was built
+on an NVIDIA DGX Spark); the detector needs only the tokenizer and the keys, so it runs anywhere,
+including a laptop. No training is involved: the detector is the paper's "weighted mean" g-value
+test [1], implemented with `SynthIDTextWatermarkingConfig` and
+`SynthIDTextWatermarkLogitsProcessor` from `transformers` [2, 8].
+
+**Who this is for:** instructors running a hands-on activity on AI-text watermarking, students
+asking "how does SynthID work?", and anyone evaluating how robust generative-AI watermarks are to
+editing and paraphrasing.
 
 ## What the dashboard shows
 
@@ -70,15 +109,15 @@ runs a detector.
 Screenshots in `docs/screenshots/` were taken from a live instance; regenerate them with Playwright
 against a running server if the UI changes.
 
-## How it works in one paragraph
+## How SynthID-Text works in one paragraph
 
-SynthID-Text changes *which token the model samples* at each step. For every position it hashes the
+SynthID-Text changes *which token the model samples* at each step [1]. For every position it hashes the
 previous `ngram_len - 1` tokens together with each secret key to produce a set of pseudo-random bits
 ("g-values"), then runs a tournament that prefers candidate tokens whose g-values are 1. Unwatermarked
 text has g-values that are fair coins (mean 0.5). Watermarked text has a mean noticeably above 0.5. The
 detector re-derives the g-values from the pasted tokens and the keys and reports how far above 0.5 the
 mean is as a z-score, weighting early tournament layers (which carry most of the signal) 10x more than
-the last. z >= 4 means p < 0.00003 under the "no watermark" hypothesis.
+the last [1]. z >= 4 means p < 0.00003 under the "no watermark" hypothesis.
 
 Consequence for the activity: the watermark lives in exact token n-grams. Pasting the LLM output
 verbatim lights the detector up. Swapping a few words weakens it. Rewriting the story in your own words
@@ -219,7 +258,7 @@ Suggested flow, which turns the inevitable "no watermark" on a full rewrite into
 1. **Verbatim.** Participants paste the watermarked paraphrase as given. Detector: strong (z of 8 to 15 for 150 to 200 words).
 2. **Light edit.** Change five to ten words. Detector: usually still "watermarked" or "weak". Ask them to find which tokens kept the heat.
 3. **Heavy edit.** Reorder sentences, replace half the words. Detector: "weak" or gone.
-4. **Own words.** Rewrite from memory. Detector: "no watermark". Discuss why (the watermark is in token n-grams, not in meaning), and what that implies about watermarks as a defense against determined paraphrasing versus casual copy-paste.
+4. **Own words.** Rewrite from memory. Detector: "no watermark". Discuss why (the watermark is in token n-grams, not in meaning), and what that implies about watermarks as a defense against determined paraphrasing versus casual copy-paste [5, 6].
 5. **Control.** Paste an unwatermarked LLM paraphrase and the human original: both read as "no watermark", which shows the detector is not an "AI detector" but a *key* detector.
 
 Operational notes:
@@ -227,3 +266,54 @@ Operational notes:
 * The detector endpoint is cheap (tokenize + hash); dozens of simultaneous participants are fine on the Spark or even a laptop.
 * Keep `data/keys.json` off participant machines. Anyone with the keys can forge the watermark.
 * `SYNTHID_ADMIN_TOKEN` gates `/api/generate` so participants cannot generate fresh watermarked text during the session.
+
+## Frequently asked questions
+
+**Is this an AI detector?** No. It detects one specific SynthID key. Text from any model, including
+Gemini, reads as "no watermark" here unless it was generated with *this lab's* key. Google's own
+SynthID detector works the same way with Google's keys [1, 3].
+
+**Does SynthID-Text change what the model says?** Only which of several plausible next tokens gets
+sampled, and only when the model is uncertain. Where one token has nearly all the probability the
+watermark has nothing to work with, which is why low-entropy text (code, lists, factual boilerplate)
+carries a weaker signal [1].
+
+**Can a watermark survive paraphrasing?** Partially at best. Light edits usually leave enough intact
+n-grams to detect; a full rewrite does not [1, 4, 5]. Shorter n-gram context (`SYNTHID_NGRAM_LEN=3`
+here instead of Google's default 5) trades some secrecy for more edit tolerance [1].
+
+**How long does the text need to be?** Detection power grows with the square root of the number of
+scored tokens. Around 50 words gives a z-score of 4 to 6; 150 words gives 13 to 17; under about 30
+words is usually inconclusive [1].
+
+## References
+
+1. S. Dathathri, A. See, S. Ghaisas, P.-S. Huang, R. McAdam, J. Welbl, V. Bachani, A. Kaskasoli,
+   R. Stanforth, T. Matejovicova, J. Hayes, N. Vyas, M. A. Merey, J. Brown-Cohen, R. Bunel,
+   B. Balle, T. Cemgil, Z. Ahmed, K. Stacpoole, I. Shumailov, C. Baetu, S. Gowal, D. Hassabis and
+   P. Kohli. "Scalable watermarking for identifying large language model outputs." *Nature* 634,
+   818–823 (2024). <https://doi.org/10.1038/s41586-024-08025-4>
+2. Google DeepMind. *SynthID-Text* reference implementation.
+   <https://github.com/google-deepmind/synthid-text>
+3. Google DeepMind. *SynthID: identifying AI-generated content.*
+   <https://deepmind.google/technologies/synthid/>
+4. J. Kirchenbauer, J. Geiping, Y. Wen, J. Katz, I. Miers and T. Goldstein. "A Watermark for Large
+   Language Models." *ICML* (2023). <https://arxiv.org/abs/2301.10226>
+5. J. Kirchenbauer, J. Geiping, Y. Wen, M. Shu, K. Saifullah, K. Kong, K. Fernando, A. Saha,
+   M. Goldblum and T. Goldstein. "On the Reliability of Watermarks for Large Language Models."
+   *ICLR* (2024). <https://arxiv.org/abs/2306.04634>
+6. K. Krishna, Y. Song, M. Karpinska, J. Wieting and M. Iyyer. "Paraphrasing evades detectors of
+   AI-generated text, but retrieval is an effective defense." *NeurIPS* (2023).
+   <https://arxiv.org/abs/2303.13408>
+7. V. S. Sadasivan, A. Kumar, S. Balasubramanian, W. Wang and S. Feizi. "Can AI-Generated Text be
+   Reliably Detected?" (2023). <https://arxiv.org/abs/2303.11156>
+8. Hugging Face. *SynthID Text* in `transformers`: `SynthIDTextWatermarkingConfig`,
+   `SynthIDTextWatermarkLogitsProcessor` and `SynthIDTextWatermarkDetector`.
+   <https://huggingface.co/blog/synthid-text>
+
+---
+
+*Keywords: how SynthID works, SynthID-Text, SynthID text watermark, Google DeepMind watermark,
+AI text watermarking, LLM watermark detection, watermark detector, tournament sampling, g-values,
+n-gram watermark, paraphrasing robustness, AI-generated text detection, Hugging Face transformers
+SynthID, classroom lab, DGX Spark.*
