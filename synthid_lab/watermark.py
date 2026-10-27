@@ -171,10 +171,10 @@ class Generator:
 
     @torch.no_grad()
     def paraphrase(self, story: str, watermark: bool = True, seed: int | None = None,
-                   max_new_tokens: int | None = None) -> str:
+                   max_new_tokens: int | None = None, system: str | None = None) -> str:
         if seed is not None:
             torch.manual_seed(seed)
-        input_ids = self._prompt_ids(story)
+        input_ids = self._prompt_ids(story, system)
         kwargs: dict[str, Any] = dict(
             do_sample=True,
             temperature=self.cfg.temperature,

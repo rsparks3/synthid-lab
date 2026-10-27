@@ -89,6 +89,9 @@
   <details class="card">
     <summary>Instructor: generate a watermarked paraphrase</summary>
     <p class="small">Sends the story to the hosted LLM. Loads the model on first use (can take a minute).</p>
+    <label class="small" for="system">System message (the instructions Qwen gets; the watermark is applied at sampling time, not here)</label>
+    <textarea id="system" style="min-height:110px"></textarea>
+    <label class="small" for="story">Story (sent as the user message)</label>
     <textarea id="story" placeholder="Paste the original ~50 word story..."></textarea>
     <div class="row">
       <label class="chk"><input type="checkbox" id="wm" checked> apply SynthID watermark</label>
@@ -112,6 +115,7 @@ const labels = { watermarked: "Watermark detected", weak: "Weak signal", not_wat
 
 fetch("/api/info").then(r => r.json()).then(i => {
   $("info").textContent = `model ${i.model_id} · ngram ${i.ngram_len} · depth ${i.depth}`;
+  if (i.system_prompt) $("system").value = i.system_prompt;
 }).catch(() => {});
 
 function render(d) {
@@ -168,7 +172,7 @@ $("gen").onclick = async () => {
     const r = await fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json", "X-Admin-Token": $("token").value },
-      body: JSON.stringify({ story, watermark: $("wm").checked }),
+      body: JSON.stringify({ story, watermark: $("wm").checked, system: $("system").value }),
     });
     const d = await r.json();
     if (!r.ok) throw new Error(d.detail || r.status);

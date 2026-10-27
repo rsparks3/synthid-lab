@@ -54,6 +54,7 @@ class GenerateRequest(BaseModel):
     watermark: bool = True
     seed: int | None = None
     max_new_tokens: int | None = Field(default=None, ge=16, le=1024)
+    system: str | None = Field(default=None, max_length=4000)   # overrides data/prompt.txt for this call
 
 
 @app.get("/")
@@ -84,6 +85,8 @@ def generate(req: GenerateRequest, x_admin_token: str = Header(default="")) -> d
         raise HTTPException(status_code=401, detail="Bad or missing X-Admin-Token header.")
     gen = get_generator()
     with _gen_lock:   # one generation at a time; plenty for a classroom
+        system = req.system.strip() if req.system and req.system.strip() else None
         text = gen.paraphrase(req.story, watermark=req.watermark, seed=req.seed,
-                              max_new_tokens=req.max_new_tokens)
-    return {"text": text, "watermark": req.watermark, "detection": detector.score(text).as_dict()}
+                              max_new_tokens=req.max_new_tokens, system=system)
+    return {"text": text, "watermark": req.watermark, "system": system or load_prompt(),
+            "detection": detector.score(text).as_dict()}
