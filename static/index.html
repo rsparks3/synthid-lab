@@ -52,12 +52,7 @@
   .stat { border: 1px solid var(--line); border-radius: 8px; padding: 10px 12px; }
   .stat b { display: block; font-size: 1.3rem; }
   .stat span { color: var(--ink2); font-size: .85rem; }
-  .gauge { position: relative; height: 12px; border-radius: 6px; background: linear-gradient(90deg, var(--mid) 0 25%, color-mix(in srgb, var(--warn) 70%, var(--mid)) 25% 50%, color-mix(in srgb, var(--pos) 75%, var(--mid)) 50%); margin: 18px 0 6px; }
-  .gauge i { position: absolute; top: -6px; width: 4px; height: 24px; background: var(--ink); border-radius: 2px; transform: translateX(-2px); transition: left .4s; }
-  .gauge-labels { position: relative; height: 1.2em; color: var(--muted); font-size: .8rem; }
-  .gauge-labels span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
-  .gauge-labels span:first-child { transform: none; }
-  .gauge-labels span:last-child { transform: translateX(-100%); }
+  #bell { margin: 14px 0 4px; }
   .tabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: 20px 0 14px; flex-wrap: wrap; }
   .tabs button { background: transparent; color: var(--ink2); border-radius: 8px 8px 0 0; padding: 8px 14px; font-weight: 500; border-bottom: 2px solid transparent; }
   .tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
@@ -111,7 +106,31 @@
   .keyrow input { flex: 1 1 260px; min-width: 0; padding: 8px 10px; border-radius: 8px; border: 1px solid var(--line); background: var(--bg); color: var(--ink); font: .85rem ui-monospace, SFMono-Regular, Menlo, monospace; }
   .keyrow button { padding: 8px 12px; }
   .keytag { display: inline-block; font-size: .8rem; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--line); color: var(--ink2); }
+  .keytag[hidden] { display: none; }
   .keytag.custom { border-color: var(--warn); background: color-mix(in srgb, var(--warn) 15%, transparent); color: var(--ink); }
+  .pagetabs { display: flex; gap: 4px; border-bottom: 1px solid var(--line); margin: -4px 0 18px; }
+  .pagetabs button { background: transparent; color: var(--ink2); border-radius: 8px 8px 0 0; padding: 8px 16px; font-weight: 500; border-bottom: 2px solid transparent; }
+  .pagetabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); font-weight: 600; }
+  .info { max-width: 820px; margin-left: auto; margin-right: auto; }
+  .info h3 { font-size: 1.1rem; margin: 28px 0 8px; scroll-margin-top: 12px; }
+  .info p, .info li, .info dd { color: var(--ink); }
+  .info li { margin-bottom: 6px; }
+  .info code { font: .88em ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 0 4px; }
+  .toc { display: flex; flex-wrap: wrap; gap: 6px 14px; padding: 10px 14px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; font-size: .9rem; }
+  .toc a { color: var(--accent); text-decoration: none; }
+  .toc a:hover { text-decoration: underline; }
+  .flow { display: flex; align-items: stretch; gap: 6px; flex-wrap: wrap; margin: 6px 0 14px; }
+  .flow div { flex: 1 1 130px; border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; background: var(--bg); }
+  .flow div b { display: block; font-size: .95rem; }
+  .flow div span { color: var(--ink2); font-size: .82rem; }
+  .flow i { align-self: center; color: var(--muted); font-style: normal; }
+  @media (max-width: 700px) { .flow i { display: none; } }
+  .formula { font: 1rem ui-monospace, SFMono-Regular, Menlo, monospace; margin: 8px 0; padding: 8px 12px; background: var(--bg); border: 1px solid var(--line); border-radius: 8px; overflow-x: auto; }
+  table.mini { border-collapse: collapse; font-size: .92rem; margin: 6px 0 10px; }
+  table.mini th, table.mini td { text-align: left; padding: 5px 12px 5px 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+  table.mini th { color: var(--ink2); font-weight: 500; }
+  .defs dt { font-weight: 600; margin-top: 10px; }
+  .defs dd { margin: 2px 0 0 0; }
   .callout { border-left: 3px solid var(--warn); padding: 6px 12px; background: color-mix(in srgb, var(--warn) 10%, transparent); border-radius: 0 8px 8px 0; font-size: .9rem; }
 </style>
 </head>
@@ -124,6 +143,12 @@
     </div>
     <button id="toggle-gen" class="ghost">Show the generator &amp; key</button>
   </header>
+  <nav class="pagetabs" role="tablist" aria-label="Page">
+    <button role="tab" data-view="demo" aria-selected="true">Demo</button>
+    <button role="tab" data-view="info" aria-selected="false">How it works</button>
+  </nav>
+
+  <div id="view-demo">
 
   <!-- ============================== detector ============================== -->
   <section class="card" id="detector">
@@ -139,7 +164,6 @@
     <div class="small" id="key-status" style="margin-top:4px"></div>
     <div class="row">
       <button id="detect">Check for watermark</button>
-      <button id="restore" class="ghost" hidden>Reset to generated text</button>
       <label class="chk small"><input type="checkbox" id="live" checked> Update as I type</label>
       <span class="small"><span id="live-status"></span> <span id="info"></span></span>
     </div>
@@ -150,8 +174,8 @@
         <span id="verdict-note" class="small"></span>
         <span id="key-tag" class="keytag"></span>
       </div>
-      <div class="gauge" title="z-score"><i id="needle"></i></div>
-      <div class="gauge-labels"><span style="left:0">z = 0 (chance)</span><span style="left:25%">2 weak</span><span style="left:50%">4 watermarked</span><span style="left:100%">8+</span></div>
+      <div id="bell"></div>
+      <p class="small" style="margin:0">The gray bell curve shows where z-scores of text <em>without</em> this watermark land; each tick is one standard deviation (σ). The marker is this text. Hover to see how often unwatermarked text scores that high.</p>
       <div class="stats">
         <div class="stat"><b id="s-z"></b><span>z-score (how many standard deviations above chance)</span></div>
         <div class="stat"><b id="s-p"></b><span>p-value: chance an unwatermarked text scores this high</span></div>
@@ -217,8 +241,12 @@
         <select id="examples"><option value="">-- choose --</option></select>
         <span class="small" id="model-status"></span>
       </div>
-      <label class="small" for="system" style="display:block;margin-top:10px">System message (the instructions Qwen gets; the watermark is applied at sampling time, not here). <code>{words}</code> and <code>{how}</code> are filled in from the length slider. The default comes from <code>data/prompt.txt</code>.</label>
-      <textarea id="system" style="min-height:110px"></textarea>
+      <details id="system-box" style="margin-top:10px">
+        <summary>System message <span id="system-edited" class="keytag custom" hidden>edited</span></summary>
+        <p class="small" style="margin:6px 0">The instructions Qwen gets; the watermark is applied at sampling time, not here. <code>{words}</code> and <code>{how}</code> are filled in from the length slider. The default comes from <code>data/prompt.txt</code>.</p>
+        <textarea id="system" style="min-height:110px" aria-label="System message"></textarea>
+        <div class="row" style="margin-top:6px"><button id="system-reset" class="ghost" disabled>Reset to default</button></div>
+      </details>
       <label class="small" for="story" style="display:block;margin-top:10px">Story (sent as the user message)</label>
       <textarea id="story" placeholder="Paste or write a short story (~50 words)..."></textarea>
       <div class="small count" id="story-count"></div>
@@ -259,6 +287,136 @@
         <p class="small"><b>Wrong-key test:</b> press <em>Random key</em> next to the detector's Key box. The same watermarked text then reads as noise, on every chart. SynthID is not an "AI text detector": it only recognizes text made with <em>its own</em> key. Changing just one number of this key only breaks that one tournament layer, so the score drops but doesn't vanish.</p>
     </section>
   </section>
+  </div>
+
+  <!-- ============================== how it works ============================== -->
+  <div id="view-info" hidden>
+    <article class="card info">
+      <h2>How this demonstration works</h2>
+      <p>This page is a working copy of <b>SynthID-Text</b>, the text watermark Google DeepMind published in <i>Nature</i> in 2024 and released as open source. A language model writes text that looks completely normal, but the exact words it chose carry a hidden statistical signature. Anyone holding the <b>secret key</b> can check for that signature. Anyone without it sees ordinary text.</p>
+      <p>Everything on the Demo tab runs on this machine. Nothing is sent to an outside service.</p>
+
+      <nav class="toc" aria-label="Contents">
+        <a href="#i-big">The big picture</a><a href="#i-tokens">Tokens and n-grams</a><a href="#i-key">The secret key</a>
+        <a href="#i-g">g-values</a><a href="#i-tourney">Tournament sampling</a><a href="#i-detect">Detection and the z-score</a>
+        <a href="#i-charts">Reading the charts</a><a href="#i-limits">What breaks the watermark</a><a href="#i-setup">This demo's setup</a>
+        <a href="#i-lesson">Suggested lesson flow</a><a href="#i-refs">References</a>
+      </nav>
+
+      <h3 id="i-big">1. The big picture</h3>
+      <div class="flow" aria-label="Pipeline overview">
+        <div><b>Secret key</b><span><span data-v="depth"></span> random numbers</span></div><i>→</i>
+        <div><b>g-values</b><span>a pseudo-random bit per (recent tokens, candidate, key number)</span></div><i>→</i>
+        <div><b>Tournament</b><span>nudges each word choice toward candidates with 1-bits</span></div><i>→</i>
+        <div><b>Watermarked text</b><span>reads normally</span></div><i>→</i>
+        <div><b>Detector</b><span>recomputes the bits from the text + key and checks whether too many are 1</span></div>
+      </div>
+      <p>A language model writes one <em>token</em> (a word or piece of a word) at a time. At each step it has a probability for every possible next token, and normally it simply samples from those. The watermark changes only that sampling step. It slightly prefers candidates that the secret key happens to score as "1", without changing which candidates are plausible. The model's knowledge, the prompt and the meaning are untouched.</p>
+      <p>Because every preference is tiny and pseudo-random, a single word proves nothing. Over a hundred or more tokens, though, the text carries far more 1s than chance would give, and that is what the detector measures.</p>
+
+      <h3 id="i-tokens">2. Tokens and n-grams</h3>
+      <p>The model (<span data-v="model"></span>) splits text into tokens using its tokenizer. "lighthouse" might be one token, while "Mara's" might be <span class="tok">Mara</span><span class="tok">'s</span>. The watermark works on tokens, not words or ideas, which is why the heatmap sometimes colors part of a word.</p>
+      <p>An <b>n-gram</b> is a run of <i>n</i> consecutive tokens. This demo uses <b>n = <span data-v="ngram"></span></b>: each token is judged together with the <span data-v="ctx"></span> tokens before it. That short run is the only context the watermark ever looks at. Change any one of those tokens and the watermark for that position is reshuffled.</p>
+
+      <h3 id="i-key">3. The secret key</h3>
+      <p>The key is just a list of <b><span data-v="depth"></span> whole numbers</b>, one per tournament layer (the "depth"; Google's paper also uses 30). You can see this demo's key under "Show the generator &amp; key".</p>
+      <ul>
+        <li><b>How it was made.</b> <code>scripts/make_keys.py</code> drew each number with Python's <code>secrets.randbelow(2<sup>31</sup>&nbsp;−&nbsp;1)</code>. That is the operating system's cryptographically secure random generator, so the numbers can't be guessed or reproduced. They were saved once to <code>data/keys.json</code> on the server. The script refuses to overwrite an existing key, because a new key makes every earlier watermark undetectable.</li>
+        <li><b>The "Random key" button</b> makes a throwaway key the same way, in your browser (<code>crypto.getRandomValues</code>, 31-bit numbers). It is never saved.</li>
+        <li><b>What is <em>not</em> secret.</b> The method, the code, the n-gram length, and a lookup table of <span data-v="table"></span> random bits (generated from the public seed <span data-v="seed"></span>) are all public. Security rests on the key alone, as with a password.</li>
+        <li><b>Why it must stay private.</b> With the key, anyone can detect the watermark, <em>and forge it</em>: they can make any text, even text a human wrote, look watermarked by choosing words the key favors. Without the key, the bits look like coin flips and nobody can detect, remove on purpose, or fake the watermark.</li>
+      </ul>
+
+      <h3 id="i-g">4. g-values: the key's coin flips</h3>
+      <p>A <b>g-value</b> is a single bit (0 or 1) that the key assigns to a token <em>in its context</em>. For a candidate token <var>x</var> that follows the tokens <var>c</var><sub>1</sub>…<var>c</var><sub><span data-v="ctx"></span></sub>, and for key number <var>i</var> (out of <span data-v="depth"></span>):</p>
+      <ol>
+        <li>Start with <code>h = 1</code> and mix in each token id of (<var>c</var><sub>1</sub>, …, <var>x</var>) in turn: <code>h = (h + token) × 6364136223846793005 + 1</code>, wrapping around at 64 bits. This is a linear-congruential hash.</li>
+        <li>Mix in the key number the same way: <code>h<sub>i</sub> = (h + key<sub>i</sub>) × 6364136223846793005 + 1</code>.</li>
+        <li>Look up bit number <code>h<sub>i</sub> mod <span data-v="table"></span></code> in the public table of random bits. That bit is <var>g</var><sub><i>i</i></sub>(<var>x</var>).</li>
+      </ol>
+      <p>So every candidate gets <span data-v="depth"></span> bits, one per key number. You can see them as the strips of little squares in the tournament explorer. The bits look random, but they are <em>deterministic</em>: the same context, candidate and key always give the same bits. That is why the detector can recompute them later from nothing but the text and the key.</p>
+      <p>For any text that was <em>not</em> written with this key, each g-value behaves like a fair coin flip, with a 50% chance of being 1. That includes human writing, other AI models, and this model with the watermark off. This baseline of 0.50 is what the detector compares against.</p>
+
+      <h3 id="i-tourney">5. Tournament sampling: how the watermark gets in</h3>
+      <p>At each step the model proposes candidates with probabilities (after temperature <span data-v="temp"></span> and keeping the top <span data-v="topk"></span>). The watermark then runs a <b>tournament</b> with one round per key number:</p>
+      <ul>
+        <li>Imagine drawing two candidates from the model's distribution. The one whose g-value for this round is 1 wins. On a tie, a coin decides. Winners advance to the next round, which uses the next key number, and so on for <span data-v="depth"></span> rounds.</li>
+        <li>The code does this exactly, in closed form. In round <var>i</var> each candidate's probability is multiplied by <code>1 + g<sub>i</sub>(x) − E[g<sub>i</sub>]</code>, where <code>E[g<sub>i</sub>]</code> is the probability-weighted average g-value of all candidates. Candidates with a 1 gain, candidates with a 0 lose, and the total stays 100%.</li>
+        <li>The final token is then sampled from the reshaped probabilities. In the tournament explorer, the gray bars are the model's own probabilities and the red bars are after the tournament.</li>
+      </ul>
+      <p><b>Why the text still reads well.</b> The tournament only reweights candidates the model already considered plausible. Averaged over all possible keys, the output distribution is exactly the model's own (the paper calls this <em>non-distortionary</em>). For one fixed key, it leans toward that key's favorites.</p>
+      <p><b>Why entropy matters.</b> If the model is nearly certain (say "Statue of" → "Liberty"), there is no choice to steer, and that token carries almost no watermark. Creative writing has many plausible choices per step, so it watermarks well. Higher temperature means more choice and a stronger watermark. Facts, lists and code are much harder to watermark.</p>
+      <p><b>Two special cases.</b> The first <span data-v="ctx"></span> tokens have no full context yet, so the detector does not score them. And if the same <span data-v="ctx"></span>-token context already appeared earlier in the text, the watermark is skipped there (the explorer says so). Otherwise repeated phrases would bias the count. The detector skips those positions too.</p>
+
+      <h3 id="i-detect">6. Detection and the z-score</h3>
+      <p>The detector never runs the language model. It only needs the tokenizer and the key, so a check takes a few milliseconds:</p>
+      <ol>
+        <li>Split the pasted text into tokens with the same tokenizer.</li>
+        <li>For every token after the first <span data-v="ctx"></span>, compute its <span data-v="depth"></span> g-values from its own n-gram, exactly as in section 4. Skip positions whose context repeats.</li>
+        <li>Average each token's bits into one score with <b>weights</b> that fall from 10 (round 1) to 1 (round <span data-v="depth"></span>). Early rounds get more weight because they carry more of the signal: once the first rounds have narrowed the field, later rounds have little choice left to steer. This is the paper's "weighted mean" detector. The <em>token score</em> shown in the heatmap is this weighted average.</li>
+        <li>Under the "not watermarked" hypothesis every bit is a fair coin, so the average of all token scores should be 0.50, with a known spread. The <b>z-score</b> measures how many standard deviations above 0.50 the text lands:
+          <div class="formula">z = Σ<sub>t</sub> (s<sub>t</sub> − 0.5) · Σw ⁄ (0.5 · ‖w‖ · √N)</div>
+          where <var>s</var><sub><i>t</i></sub> is token <var>t</var>'s score, <var>w</var> the weights and <var>N</var> the number of scored tokens.</li>
+        <li>The <b>p-value</b> is the chance that unwatermarked text would score at least this high (one-sided normal tail).</li>
+      </ol>
+      <table class="mini">
+        <thead><tr><th>z-score</th><th>Verdict</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>≥ 4</td><td>Watermark detected</td><td>p &lt; 0.00003: about 1 false alarm in 30,000 human texts</td></tr>
+          <tr><td>2 – 4</td><td>Weak signal</td><td>suggestive, not conclusive; typical of lightly edited text</td></tr>
+          <tr><td>&lt; 2</td><td>No watermark</td><td>consistent with chance</td></tr>
+          <tr><td>—</td><td>Too short</td><td>fewer than 20 scorable tokens</td></tr>
+        </tbody>
+      </table>
+      <p><b>Why length matters.</b> Each token adds only a little evidence, but the evidence adds up. For the same per-token strength, z grows with the square root of the number of tokens, so 4× the text gives about 2× the z-score. A 10-word text can't be judged; 150 words of untouched watermarked text typically scores 13 to 17.</p>
+
+      <h3 id="i-charts">7. Reading the Demo tab</h3>
+      <dl class="defs">
+        <dt>Word heatmap</dt><dd>Each token is shaded by its score: red when its bits leaned toward 1 (supports the watermark), blue when they leaned toward 0, and neutral near 0.50. Gray text was not scored. Even watermarked text has plenty of blue tokens, because the signal is statistical.</dd>
+        <dt>Evidence over the text</dt><dd>The z-score recomputed after each scored token, in reading order, with the 2 and 4 thresholds. Watermarked text drifts upward; other text wanders around 0.</dd>
+        <dt>Most influential words</dt><dd>Each token's share of the final z-score, summed by word. The bars add up to z. These are the words whose exact context happened to be favored by the key, so changing them hurts the score most.</dd>
+        <dt>Compare with original</dt><dd>Your text next to the original story from the generator box. Shaded tokens end a <span data-v="ngram"></span>-token run that appears in both texts. It shows how little literal overlap a paraphrase has with its source, even though the meaning is the same.</dd>
+        <dt>Key box</dt><dd>Empty means the lab's secret key. Paste any key, or press Random key, and every number and chart is recomputed with that key instead. A random key turns a strong watermark into noise. Changing one number of the real key breaks only that round, so the score drops but doesn't vanish.</dd>
+        <dt>Tournament explorer</dt><dd>In the generator, click a token (then use ← →) to see the candidates the model considered, their probabilities before and after the tournament, and their <span data-v="depth"></span> g-values. These are recomputed with one extra pass of the model, using the same temperature and top-k as the generation.</dd>
+      </dl>
+
+      <h3 id="i-limits">8. What weakens or breaks the watermark</h3>
+      <ul>
+        <li><b>Editing.</b> Every changed token changes the n-grams it belongs to (here, up to <span data-v="ngram"></span> of them). A few edits lower the score; heavy editing removes it.</li>
+        <li><b>Paraphrasing and translation.</b> Rewriting in your own words, or with another model, keeps the meaning but replaces nearly every n-gram, and the watermark goes with them. This is the main limitation of every text watermark, and the key lesson of this demo.</li>
+        <li><b>Short or predictable text.</b> Too few tokens, or too few real choices per token, means too little evidence.</li>
+        <li><b>n-gram length trade-off.</b> A longer context (Google's default is 5) makes the key harder to infer from text, but each edit then destroys more positions. This demo uses <span data-v="ngram"></span> so that light edits leave some signal behind.</li>
+        <li><b>It is not an "AI detector".</b> It only recognizes text made <em>with this key</em>. Text from any other model, or this model with the watermark off, scores like human writing.</li>
+        <li><b>Key leaks.</b> Anyone with the key can detect, and also forge, the watermark. That is why this demo showing its key is the exception.</li>
+      </ul>
+
+      <h3 id="i-setup">9. This demo's setup</h3>
+      <ul>
+        <li><b>Model:</b> <span data-v="model"></span>, running on this DGX Spark's GPU. Watermarking uses the SynthID-Text implementation in Hugging Face <code>transformers</code>.</li>
+        <li><b>Sampling:</b> temperature <span data-v="temp"></span> and top-k <span data-v="topk"></span> by default (adjustable). The model's own top-p and repetition penalty are turned off, so these sliders are the only sampling settings in play.</li>
+        <li><b>Prompt and length:</b> by default the model is asked to retell the story in its own words in about <i>N</i> words (default <span data-v="words"></span>), condensing or expanding as needed. The instructions come from <code>data/prompt.txt</code> and can be edited for each generation in the "System message" box; the prompt never contains the watermark, which is applied only while sampling. Whatever the prompt says, generation stops at the first sentence end once <i>N</i> words are reached.</li>
+        <li><b>Watermark settings:</b> <span data-v="depth"></span> key numbers, n-gram length <span data-v="ngram"></span>, a <span data-v="table"></span>-entry bit table (seed <span data-v="seed"></span>), and repeated-context memory of <span data-v="hist"></span> steps.</li>
+        <li><b>A fix this demo needed:</b> the stock library builds its bit table with a different random generator on a GPU than on a CPU, so text watermarked on the GPU was invisible to a CPU detector. This demo always builds the table on the CPU, so both sides agree.</li>
+        <li><b>Compared with Google's production system:</b> the algorithm is the same one used for Gemini, but Gemini uses its own keys and its own hashing, so this detector can't check Gemini output (and vice versa). Google also offers a trained, Bayesian detector; this demo uses the simpler weighted-mean test described in the paper.</li>
+      </ul>
+
+      <h3 id="i-lesson">10. Suggested lesson flow</h3>
+      <ol>
+        <li><b>Detector only.</b> Paste a watermarked paraphrase: detected with a large z-score. Paste the human story: no watermark.</li>
+        <li><b>Light edit.</b> Change 5 to 10 words and watch the live score fall a little. Which words on the "Most influential words" chart did you change?</li>
+        <li><b>Heavy edit, then own words.</b> Reorder and replace; then rewrite from memory. The watermark fades and is gone. Discuss: the watermark lives in exact token sequences, not in meaning.</li>
+        <li><b>Under the hood.</b> Show the generator and the key. Step through the tournament explorer. Try a random key on watermarked text, and then change one key number.</li>
+        <li><b>Discussion.</b> What is watermarking good for (catching casual copy-paste, labeling content at scale) and what can't it do (stop a determined paraphraser, detect other models)? Who should hold the keys?</li>
+      </ol>
+
+      <h3 id="i-refs">11. References</h3>
+      <ul>
+        <li>S. Dathathri et al., "Scalable watermarking for identifying large language model outputs," <i>Nature</i> 634, 818–823 (2024).</li>
+        <li>Google DeepMind, SynthID-Text reference code: github.com/google-deepmind/synthid-text</li>
+        <li>Hugging Face <code>transformers</code>: <code>SynthIDTextWatermarkingConfig</code> and <code>SynthIDTextWatermarkLogitsProcessor</code>.</li>
+      </ul>
+    </article>
+  </div>
 </main>
 <div id="tip" role="tooltip"></div>
 
@@ -306,9 +464,10 @@ function heatColor(g) {
 fetch("/api/info").then(r => r.json()).then(i => {
   $("info").textContent = `key depth ${i.depth} · n-gram ${i.ngram_len} · tokenizer ${i.model_id}`;
   $("model-name").textContent = i.model_id;
-  if (i.system_prompt) $("system").value = i.system_prompt;
+  if (i.system_prompt) { defaultSystem = i.system_prompt; $("system").value = i.system_prompt; syncSystem(); }
   ngram = i.ngram_len; depth = i.depth;
   const d = i.defaults;
+  fillInfo({ model: i.model_id, ngram: i.ngram_len, ctx: i.ngram_len - 1, depth: i.depth, temp: d.temperature, topk: d.top_k, words: d.words });
   $("temp").value = d.temperature; $("topk").value = d.top_k; $("len").value = d.words;
   syncKnobs();
   pollStatus();
@@ -324,6 +483,7 @@ function pollStatus() {
 let secretKeys = [];
 fetch("/api/keys").then(r => r.json()).then(k => {
   secretKeys = k.keys;
+  fillInfo({ table: k.sampling_table_size.toLocaleString("en-US"), seed: k.sampling_table_seed, hist: k.context_history_size.toLocaleString("en-US") });
   $("k-depth").textContent = k.depth;
   $("k-ctx").textContent = k.ngram_len - 1;
   document.querySelectorAll(".c-n").forEach(e => e.textContent = k.ngram_len);
@@ -349,6 +509,31 @@ $("examples").onchange = () => {
 };
 
 // ---------------------------------------------------------------- generator toggle
+// system message: collapsed by default; flag edits so a custom prompt isn't forgotten while hidden
+let defaultSystem = "";
+function syncSystem() {
+  const edited = $("system").value !== defaultSystem;
+  $("system-edited").hidden = !edited;
+  $("system-reset").disabled = !edited;
+}
+$("system").oninput = syncSystem;
+$("system-reset").onclick = () => { $("system").value = defaultSystem; syncSystem(); };
+
+// page tabs: Demo / How it works
+function setView(v) {
+  document.querySelectorAll(".pagetabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
+  $("view-demo").hidden = v !== "demo";
+  $("view-info").hidden = v !== "info";
+  $("toggle-gen").hidden = v !== "demo";
+  store.set("view", v);
+  if (v === "demo" && last) { drawBell(last); drawCharts(last); }
+}
+document.querySelectorAll(".pagetabs button").forEach(b => b.onclick = () => setView(b.dataset.view));
+// fill live configuration values into the "How it works" text
+function fillInfo(vals) {
+  for (const [k, v] of Object.entries(vals)) document.querySelectorAll(`[data-v="${k}"]`).forEach(e => e.textContent = v);
+}
+
 function setGen(open) {
   $("gen-section").hidden = !open;
   $("toggle-gen").textContent = open ? "Hide the generator & key" : "Show the generator & key";
@@ -394,7 +579,6 @@ function render(d) {
   $("verdict-note").textContent = notes[d.verdict] || "";
   $("key-tag").textContent = d.secret_key ? "scored with the secret key" : "scored with a different key";
   $("key-tag").className = "keytag" + (d.secret_key ? "" : " custom");
-  $("needle").style.left = Math.max(0, Math.min(100, (d.z / 8) * 100)) + "%";
   $("s-z").textContent = d.z.toFixed(2);
   $("s-p").textContent = fmtP(d.p_value);
   $("s-mean").textContent = d.weighted_g.toFixed(3);
@@ -418,7 +602,62 @@ function render(d) {
     tokenSpans($("c-cur"), d, { mark: (s, i) => { s.style.background = ""; s.classList.remove("unscored"); if (d.survived[i]) s.classList.add("kept"); },
                                 extra: (i) => d.survived[i] ? "<br>also in the original story" : "<br>not in the original story" });
   }
+  drawBell(d);
   drawCharts(d);
+}
+
+// ---------------------------------------------------------------- bell curve: null distribution of z
+const normPdf = (x) => Math.exp(-x * x / 2) / Math.sqrt(2 * Math.PI);
+function normTail(z) {   // one-sided P(Z >= z), Abramowitz-Stegun 7.1.26 erfc approximation
+  const x = Math.abs(z) / Math.SQRT2, t = 1 / (1 + 0.3275911 * x);
+  const erfc = t * (0.254829592 + t * (-0.284496736 + t * (1.421413741 + t * (-1.453152027 + t * 1.061405429)))) * Math.exp(-x * x);
+  return z >= 0 ? erfc / 2 : 1 - erfc / 2;
+}
+const fmtTail = (p) => p >= 0.01 ? `${(p * 100).toFixed(p >= 0.1 ? 0 : 1)}% of the time` : p >= 1e-6 ? `about 1 in ${Math.round(1 / p).toLocaleString("en-US")}` : `less than 1 in a million`;
+
+function drawBell(d) {
+  const box = $("bell"); box.innerHTML = "";
+  const W = Math.max(320, box.clientWidth), H = 120, m = { l: 12, r: 12, t: 22, b: 30 };
+  const lo = -4, hi = Math.min(30, Math.max(8, Math.ceil(d.z) + 1));   // widen the axis for very high scores
+  const x = (z) => m.l + (z - lo) / (hi - lo) * (W - m.l - m.r);
+  const base = H - m.b, top = m.t;
+  const y = (v) => base - v / normPdf(0) * (base - top);
+  const svg = svgEl("svg", { viewBox: `0 0 ${W} ${H}`, width: "100%", role: "img",
+    "aria-label": `Bell curve of z-scores for unwatermarked text; this text scores z = ${d.z.toFixed(2)}` }, box);
+  // verdict zones
+  svgEl("rect", { x: x(2), y: top, width: x(4) - x(2), height: base - top, fill: css("--warn"), opacity: 0.16 }, svg);
+  svgEl("rect", { x: x(4), y: top, width: x(hi) - x(4), height: base - top, fill: css("--pos"), opacity: 0.12 }, svg);
+  svgEl("text", { x: (x(2) + x(4)) / 2, y: top - 6, "text-anchor": "middle" }, svg).textContent = "weak";
+  const narrow = W < 560;
+  svgEl("text", { x: x(4) + 6, y: top - 6 }, svg).textContent = narrow ? "detected →" : "watermark detected →";
+  // null curve
+  const pts = []; for (let z = lo; z <= Math.min(hi, 4.5); z += 0.05) pts.push([x(z), y(normPdf(z))]);
+  const line = pts.map((p, i) => (i ? "L" : "M") + p[0].toFixed(1) + "," + p[1].toFixed(1)).join("");
+  svgEl("path", { d: `${line}L${pts[pts.length - 1][0].toFixed(1)},${base}L${pts[0][0].toFixed(1)},${base}Z`, fill: css("--muted"), opacity: 0.25 }, svg);
+  svgEl("path", { d: line, fill: "none", stroke: css("--muted"), "stroke-width": 2 }, svg);
+  // axis with one tick per standard deviation
+  svgEl("line", { x1: m.l, x2: W - m.r, y1: base, y2: base, class: "axis" }, svg);
+  const every = hi - lo > 16 || narrow ? 2 : 1;
+  for (let z = lo; z <= hi; z += every) {
+    svgEl("line", { x1: x(z), x2: x(z), y1: base, y2: base + 4, class: "axis" }, svg);
+    if (z !== lo) svgEl("text", { x: x(z), y: base + 16, "text-anchor": "middle" }, svg).textContent = z === 0 ? "0" : `${z}σ`;
+  }
+  svgEl("text", { x: x(0), y: base + 28, "text-anchor": "middle" }, svg).textContent = "chance";
+  // this text
+  const zc = Math.max(lo, Math.min(hi, d.z));
+  svgEl("line", { x1: x(zc), x2: x(zc), y1: top - 2, y2: base, stroke: css("--ink"), "stroke-width": 2.5 }, svg);
+  svgEl("circle", { cx: x(zc), cy: top - 2, r: 4, fill: css("--ink") }, svg);
+  const lab = svgEl("text", { x: x(zc), y: top + 12, "text-anchor": zc > (lo + hi) / 2 ? "end" : "start", dx: zc > (lo + hi) / 2 ? -6 : 6, style: "font-weight:600" }, svg);
+  lab.textContent = `this text: z = ${d.z.toFixed(2)}`;
+  lab.style.fill = css("--ink");
+  // hover: how often unwatermarked text reaches each point
+  const hit = svgEl("rect", { x: m.l, y: 0, width: W - m.l - m.r, height: H, fill: "transparent" }, svg);
+  hit.onmousemove = (e) => {
+    const r = svg.getBoundingClientRect();
+    const z = lo + ((e.clientX - r.left) * W / r.width - m.l) / (W - m.l - m.r) * (hi - lo);
+    showTip(e, `<b>z = ${z.toFixed(1)}</b> (${z.toFixed(1)} standard deviations)<br>unwatermarked text scores this high or higher ${fmtTail(normTail(z))}`);
+  };
+  hit.onmouseleave = hideTip;
 }
 
 function drawCharts(d) {
@@ -468,9 +707,6 @@ const scheduleDetect = () => { clearTimeout(dt); if ($("live").checked) dt = set
 $("live").onchange = () => { store.set("live", $("live").checked ? "1" : "0"); scheduleDetect(); };
 
 $("detect").onclick = runDetect;
-// last generated paraphrase, so students can undo their edits
-$("restore").onclick = () => { $("text").value = store.get("para") || ""; store.set("text", $("text").value); syncCounts(); runDetect(); };
-const syncRestore = () => { $("restore").hidden = !store.get("para"); };
 $("text").oninput = () => { store.set("text", $("text").value); syncCounts(); scheduleDetect(); };
 $("key").oninput = () => { store.set("key", $("key").value); syncKeyUi(); scheduleDetect(); };
 function setKey(v) { $("key").value = v; store.set("key", v); syncKeyUi(); runDetect(); }
@@ -641,8 +877,8 @@ $("gen").onclick = async () => {
 function sendToDetector() {
   if (!lastGen) return;
   $("text").value = lastGen.text;
-  store.set("text", lastGen.text); store.set("para", lastGen.text);
-  syncRestore(); syncCounts();
+  store.set("text", lastGen.text);
+  syncCounts();
   runDetect();
 }
 $("to-detector").onclick = () => { sendToDetector(); $("detector").scrollIntoView({ behavior: "smooth" }); };
@@ -719,10 +955,11 @@ $("text").value = store.get("text") || "";
 $("story").value = store.get("story") || "";
 $("key").value = store.get("key") || "";
 $("live").checked = store.get("live") !== "0";
-syncRestore(); syncKeyUi(); syncCounts();
+syncKeyUi(); syncCounts();
 if ($("text").value.trim()) runDetect();
 setTab(tab);
-let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => last && drawCharts(last), 150); });
+setView(store.get("view") === "info" ? "info" : "demo");
+let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (last) { drawBell(last); drawCharts(last); } }, 150); });
 </script>
 </body>
 </html>

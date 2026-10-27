@@ -36,7 +36,9 @@ static/index.html          dashboard: detector (heatmap, z-curve, top words, com
 scripts/make_keys.py       create the secret key set (data/keys.json, git-ignored)
 scripts/make_paraphrases.py batch-generate watermarked + control paraphrases for every story
 scripts/calibrate.py       check the null distribution / threshold
+scripts/show_prompt.py     print the exact prompt the model receives (no weights loaded)
 scripts/smoke_test.py      end-to-end check with a 360M model on CPU
+data/prompt.txt            system prompt template for the paraphraser ({words}, {how} placeholders)
 data/stories.json          your ~50-word stories (3 placeholders included; shown as examples in the dashboard)
 deploy/synthid-lab.service user systemd unit (port 8090, preloads the model)
 Dockerfile                 DGX Spark image based on the NGC PyTorch container
@@ -65,7 +67,7 @@ across the text, the most influential words, and a comparison with the original 
 
 "Show the generator & key" reveals the paraphraser (watermark toggle, temperature / top-k / length /
 seed), a per-token tournament view (click a token, then use the arrow keys), and the secret key. Each
-paraphrase is copied into the detector automatically; "Reset to generated text" undoes edits to it.
+paraphrase is copied into the detector automatically.
 
 A hosted OpenAI-compatible endpoint can't be used for the watermarked text: the watermark is applied
 inside sampling, which the endpoint does itself.
@@ -140,8 +142,9 @@ $env:SYNTHID_MODE="detect"; .venv\Scripts\python -m uvicorn synthid_lab.server:a
 | `SYNTHID_NGRAM_LEN` | env / `config.py` | Context length hashed per token. 5 is Google's default and is fragile to edits. 3 survives more editing and is better for a classroom gradient. Generator and detector must match. |
 | keys (`data/keys.json`) | `make_keys.py` | Length = watermark depth (30 by default, as in the paper). More layers = stronger signal per token. |
 | `SYNTHID_TEMPERATURE` | env | Higher = more entropy = stronger watermark. 0.9 to 1.0 works well. |
-| paraphrase length | `PARAPHRASE_SYSTEM` prompt | Detection power grows with sqrt(tokens). 150 words gives z of about 13 to 17; 50 words about 4 to 6; under ~30 words is usually inconclusive. |
+| paraphrase length | length slider / `{words}` in `data/prompt.txt` | Detection power grows with sqrt(tokens). 150 words gives z of about 13 to 17; 50 words about 4 to 6; under ~30 words is usually inconclusive. |
 | thresholds | `verdict_for()` | z >= 4 "watermarked", 2 to 4 "weak", else "no watermark". |
+| system prompt | `data/prompt.txt` (or `SYNTHID_PROMPT_PATH`), editable per request in the dashboard | Template for the paraphrase instructions. `{words}` becomes the target length and `{how}` an expand / condense phrase. `python scripts/show_prompt.py --words 50` prints exactly what the model receives. |
 | `SYNTHID_TARGET_WORDS` | env / dashboard slider | Length the paraphrase prompt asks for (default 50, adjustable 10 to 150 in the dashboard). Small models write about as many words as the input unless asked to expand. |
 
 Note on devices: transformers seeds the g-value sampling table with `torch.Generator(device)`, and the
