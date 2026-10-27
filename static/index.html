@@ -707,7 +707,7 @@ const scheduleDetect = () => { clearTimeout(dt); if ($("live").checked) dt = set
 $("live").onchange = () => { store.set("live", $("live").checked ? "1" : "0"); scheduleDetect(); };
 
 $("detect").onclick = runDetect;
-$("text").oninput = () => { store.set("text", $("text").value); syncCounts(); scheduleDetect(); };
+$("text").oninput = () => { syncCounts(); scheduleDetect(); };
 $("key").oninput = () => { store.set("key", $("key").value); syncKeyUi(); scheduleDetect(); };
 function setKey(v) { $("key").value = v; store.set("key", v); syncKeyUi(); runDetect(); }
 let depth = 30;   // updated from /api/info
@@ -877,7 +877,6 @@ $("gen").onclick = async () => {
 function sendToDetector() {
   if (!lastGen) return;
   $("text").value = lastGen.text;
-  store.set("text", lastGen.text);
   syncCounts();
   runDetect();
 }
@@ -951,12 +950,13 @@ $("key-use").onclick = () => {
 };
 
 // ---------------------------------------------------------------- restore state
-$("text").value = store.get("text") || "";
+// The detector box is deliberately NOT restored: every page load starts blank so each participant
+// begins from an empty detector. The story, key and settings are remembered.
+$("text").value = "";
 $("story").value = store.get("story") || "";
 $("key").value = store.get("key") || "";
 $("live").checked = store.get("live") !== "0";
 syncKeyUi(); syncCounts();
-if ($("text").value.trim()) runDetect();
 setTab(tab);
 setView(store.get("view") === "info" ? "info" : "demo");
 let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (last) { drawBell(last); drawCharts(last); } }, 150); });
