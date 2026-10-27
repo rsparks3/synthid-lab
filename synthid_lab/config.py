@@ -13,6 +13,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent.parent
 DATA_DIR = ROOT / "data"
 KEYS_PATH = Path(os.environ.get("SYNTHID_KEYS_PATH", DATA_DIR / "keys.json"))
+PROMPT_PATH = Path(os.environ.get("SYNTHID_PROMPT_PATH", DATA_DIR / "prompt.txt"))
 
 
 @dataclass
@@ -51,6 +52,11 @@ def load_keys(path: Path = KEYS_PATH) -> list[int]:
     if not keys or not all(isinstance(k, int) for k in keys):
         raise ValueError("keys.json must contain a non-empty list of ints")
     return list(keys)
+
+
+def load_prompt(path: Path = PROMPT_PATH) -> str:
+    """The system prompt given to the paraphrasing LLM. Edit data/prompt.txt to change it."""
+    return path.read_text(encoding="utf-8").strip()
 
 
 def load_config() -> LabConfig:

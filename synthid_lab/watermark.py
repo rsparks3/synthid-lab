@@ -27,14 +27,8 @@ from transformers import (
     SynthIDTextWatermarkLogitsProcessor,
 )
 
-from .config import LabConfig
+from .config import LabConfig, load_prompt
 
-PARAPHRASE_SYSTEM = (
-    "You are a careful editor. Rewrite the user's short story in your own words. "
-    "Keep every plot point, character and the same point of view, but change the wording and "
-    "sentence structure throughout. Write between 150 and 200 words. "
-    "Output only the rewritten story, no title, no preamble."
-)
 
 
 def _device() -> str:
@@ -160,8 +154,16 @@ class Generator:
         self.wm_config = make_watermark_config(cfg)
         self.detector = Detector(cfg, tokenizer=self.tokenizer, device="cpu")
 
-    def _prompt_ids(self, story: str, system: str = PARAPHRASE_SYSTEM) -> torch.Tensor:
-        messages = [{"role": "system", "content": system}, {"role": "user", "content": story}]
+    def build_messages(self, story: str, system: str | None = None) -> list[dict[str, str]]:
+        """The exact chat sent to the LLM. The watermark is NOT in here; it is applied at sampling time."""
+        return [{"role": "system", "content": system or load_prompt()}, {"role": "user", "content": story}]
+
+    def render_prompt(self, story: str, system: str | None = None) -> str:
+        """The raw string the model actually sees, after the chat template is applied."""
+        return self.tokenizer.apply_chat_template(self.build_messages(story, system), add_generation_prompt=True, tokenize=False)
+
+    def _prompt_ids(self, story: str, system: str | None = None) -> torch.Tensor:
+        messages = self.build_messages(story, system)
         enc = self.tokenizer.apply_chat_template(
             messages, add_generation_prompt=True, return_tensors="pt", return_dict=True
         )

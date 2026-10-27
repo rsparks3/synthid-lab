@@ -17,7 +17,7 @@ from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
-from .config import ROOT, load_config
+from .config import ROOT, load_config, load_prompt
 from .watermark import Detector, Generator
 
 STATIC_DIR = ROOT / "static"
@@ -68,6 +68,7 @@ def info() -> dict:
         "ngram_len": cfg.ngram_len,
         "depth": cfg.depth,
         "mode": MODE,
+        "system_prompt": load_prompt(),
         "generator_loaded": _generator is not None,
     }
 
