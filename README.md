@@ -140,6 +140,8 @@ data/prompt.txt            system prompt template for the paraphraser ({words}, 
 data/stories.json          your ~50-word stories (3 placeholders included; shown as examples in the dashboard)
 deploy/synthid-lab.service user systemd unit (port 8090, preloads the model)
 docs/screenshots/          dashboard screenshots used in this README
+docs/lesson/               30-minute lesson deck (synthid-lesson.pptx, text and tables only) and the
+                           sample watermarked passage it asks participants to paste
 Dockerfile                 DGX Spark image based on the NGC PyTorch container
 ```
 
