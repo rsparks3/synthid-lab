@@ -11,6 +11,65 @@ Everything is built on the production SynthID-Text implementation inside Hugging
 (`SynthIDTextWatermarkingConfig` / `SynthIDTextWatermarkLogitsProcessor`). No training is needed: the
 detector is the paper's "weighted mean" g-value test, which only needs the tokenizer and the keys.
 
+## What the dashboard shows
+
+The page opens on the **Detector**. Paste any text and it is scored as you type against the lab's
+secret key. You get a verdict, the z-score placed on the bell curve of what unwatermarked text scores,
+a p-value, and a per-token heatmap: red tokens are n-grams whose key-derived coin flips came up in the
+watermark's favor, blue ones went against it. Other tabs show the evidence accumulating across the
+text, the most influential words, and an n-gram comparison with the original story.
+
+![Detector view: a watermarked paraphrase scores z = 8.99 and lights up the heatmap](docs/screenshots/detector.png)
+
+The **Key** box is the wrong-key test. Click "Random key" and the very same text drops back to
+chance, which is the point: this is a *key* detector, not an "AI detector".
+
+![The same text scored with a random key reads as no watermark](docs/screenshots/detector-wrong-key.png)
+
+"Show the generator & key" opens the **Generator** (instructor side). Pick or write a ~50-word story,
+set temperature, top-k, target length and seed, and paraphrase it with or without the watermark. The
+output goes straight into the detector. Click any output token to see the tournament that chose it:
+the model's own probabilities, how the watermark reweighted them, and the g-value bits per key layer.
+
+![Generator with the per-token tournament view](docs/screenshots/generator.png)
+
+The **How it works** tab is a self-contained explainer for participants, from tokens and n-grams
+through the tournament to the z-score, with a suggested lesson flow and references.
+
+![How it works page](docs/screenshots/how-it-works.png)
+
+## Run it locally
+
+Detector only (no GPU, a few hundred MB for the tokenizer):
+
+```bash
+python3 -m venv .venv && source .venv/bin/activate     # Windows: .venv\Scripts\activate
+pip install torch --index-url https://download.pytorch.org/whl/cpu
+pip install -r requirements.txt
+python scripts/make_keys.py                            # writes data/keys.json (keep it private)
+SYNTHID_MODE=detect uvicorn synthid_lab.server:app --port 8000
+```
+
+Open <http://localhost:8000>. The detector and the "How it works" page work immediately; the
+generator is disabled in this mode. To check the whole pipeline on a CPU, `python scripts/smoke_test.py`
+generates and detects with a 360M model in about a minute.
+
+Detector **and** generator (a GPU with ~6 GB free for the default Qwen2.5-3B-Instruct; the model is
+downloaded from Hugging Face on first use):
+
+```bash
+pip install torch            # or the CUDA wheel for your platform; on a DGX Spark see below
+SYNTHID_PRELOAD=1 uvicorn synthid_lab.server:app --host 0.0.0.0 --port 8000
+```
+
+Set `SYNTHID_ADMIN_TOKEN=<secret>` to require an `X-Admin-Token` header on `/api/generate` so
+participants cannot generate fresh watermarked text during the session. The detector and the generator
+must share one `data/keys.json` and one `SYNTHID_NGRAM_LEN`; copy the keys file to any machine that
+runs a detector.
+
+Screenshots in `docs/screenshots/` were taken from a live instance; regenerate them with Playwright
+against a running server if the UI changes.
+
 ## How it works in one paragraph
 
 SynthID-Text changes *which token the model samples* at each step. For every position it hashes the
@@ -41,6 +100,7 @@ scripts/smoke_test.py      end-to-end check with a 360M model on CPU
 data/prompt.txt            system prompt template for the paraphraser ({words}, {how} placeholders)
 data/stories.json          your ~50-word stories (3 placeholders included; shown as examples in the dashboard)
 deploy/synthid-lab.service user systemd unit (port 8090, preloads the model)
+docs/screenshots/          dashboard screenshots used in this README
 Dockerfile                 DGX Spark image based on the NGC PyTorch container
 ```
 
