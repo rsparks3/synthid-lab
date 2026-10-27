@@ -1,0 +1,21 @@
+# User-level systemd unit for the SynthID lab dashboard on the DGX Spark.
+# Install:  cp deploy/synthid-lab.service ~/.config/systemd/user/
+#           systemctl --user daemon-reload && systemctl --user enable --now synthid-lab
+#           loginctl enable-linger $USER     # keep it running without a login session / after reboot
+# Logs:     journalctl --user -u synthid-lab -f
+# Assumes the repo is at ~/synthid-test with a .venv (see README). Port 8000 is taken by vLLM.
+[Unit]
+Description=SynthID-Text classroom lab (detector + watermarked paraphraser)
+After=network-online.target
+
+[Service]
+WorkingDirectory=%h/synthid-test
+Environment=SYNTHID_MODEL=Qwen/Qwen2.5-3B-Instruct
+Environment=SYNTHID_PRELOAD=1
+Environment=PYTHONUNBUFFERED=1
+ExecStart=%h/synthid-test/.venv/bin/uvicorn synthid_lab.server:app --host 0.0.0.0 --port 8090
+Restart=on-failure
+RestartSec=10
+
+[Install]
+WantedBy=default.target

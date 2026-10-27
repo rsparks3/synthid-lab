@@ -11,7 +11,7 @@ COPY static ./static
 COPY scripts ./scripts
 # data/ (keys, stories) is mounted at runtime so keys never bake into the image.
 
-ENV SYNTHID_MODEL=Qwen/Qwen2.5-7B-Instruct \
+ENV SYNTHID_MODEL=Qwen/Qwen2.5-3B-Instruct \
     SYNTHID_NGRAM_LEN=3 \
     HF_HOME=/root/.cache/huggingface
 

@@ -18,8 +18,9 @@ KEYS_PATH = Path(os.environ.get("SYNTHID_KEYS_PATH", DATA_DIR / "keys.json"))
 @dataclass
 class LabConfig:
     # Any HF causal LM with a chat template works. Gemma is thematically nice (SynthID is Google's),
-    # but it is gated; Qwen2.5-7B-Instruct is ungated and a good paraphraser.
-    model_id: str = os.environ.get("SYNTHID_MODEL", "Qwen/Qwen2.5-7B-Instruct")
+    # but it is gated. Qwen2.5-3B-Instruct is ungated, paraphrases well, and at ~6 GB fits on the
+    # DGX Spark next to a resident vLLM server; use the 7B if the memory is free.
+    model_id: str = os.environ.get("SYNTHID_MODEL", "Qwen/Qwen2.5-3B-Instruct")
 
     # Watermark parameters. ngram_len is the big robustness knob:
     #   5 = Google's default (strong secrecy, fragile to edits)
@@ -34,7 +35,9 @@ class LabConfig:
     # Sampling. Higher temperature = more entropy = stronger watermark (and wilder prose).
     temperature: float = float(os.environ.get("SYNTHID_TEMPERATURE", "0.9"))
     top_k: int = int(os.environ.get("SYNTHID_TOP_K", "40"))
-    max_new_tokens: int = int(os.environ.get("SYNTHID_MAX_NEW_TOKENS", "220"))
+    max_new_tokens: int = int(os.environ.get("SYNTHID_MAX_NEW_TOKENS", "400"))
+    # Length the paraphrase prompt asks for. Detection power grows with sqrt(tokens).
+    target_words: int = int(os.environ.get("SYNTHID_TARGET_WORDS", "50"))
 
     @property
     def depth(self) -> int:

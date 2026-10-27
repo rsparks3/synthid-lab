@@ -27,7 +27,7 @@ STORY = (
 def main() -> None:
     ap = argparse.ArgumentParser()
     ap.add_argument("--model", default="HuggingFaceTB/SmolLM2-360M-Instruct")
-    ap.add_argument("--max-new-tokens", type=int, default=200)
+    ap.add_argument("--max-new-tokens", type=int, default=300)
     args = ap.parse_args()
 
     cfg = load_config()
