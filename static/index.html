@@ -76,7 +76,7 @@
   #tip b { font-weight: 600; }
   details > summary { cursor: pointer; color: var(--ink2); }
   /* generator */
-  #gen-section[hidden] { display: none; }
+  #view-gen[hidden] { display: none; }
   .knobs { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 14px; margin-top: 12px; }
   .knob label { display: flex; justify-content: space-between; font-size: .9rem; color: var(--ink2); }
   .knob label b { color: var(--ink); }
@@ -141,10 +141,10 @@
       <h1>SynthID Text Detector</h1>
       <p class="sub">Paste a story below. The detector holds a secret watermark key and checks, token by token, whether the text still carries that key's statistical fingerprint.</p>
     </div>
-    <button id="toggle-gen" class="ghost">Show the generator &amp; key</button>
   </header>
   <nav class="pagetabs" role="tablist" aria-label="Page">
     <button role="tab" data-view="demo" aria-selected="true">Demo</button>
+    <button role="tab" data-view="gen" aria-selected="false">Generator &amp; key</button>
     <button role="tab" data-view="info" aria-selected="false">How it works</button>
   </nav>
 
@@ -210,7 +210,7 @@
       </div>
 
       <div data-panel="compare" hidden>
-        <div id="compare-empty" class="small">This compares your text with the original story in the generator's story box. Open "Show the generator &amp; key" and write or pick a story there.</div>
+        <div id="compare-empty" class="small">This compares your text with the original story in the generator's story box. Open the "Generator &amp; key" tab and write or pick a story there.</div>
         <div id="compare-body" hidden>
           <div class="stats" style="margin-top:0">
             <div class="stat"><b id="c-ref-z"></b><span>original story's z-score</span></div>
@@ -230,9 +230,11 @@
       </div>
     </div>
   </section>
+  </div>
 
-  <!-- ============================== generator ============================== -->
-  <section id="gen-section" hidden>
+  <!-- ============================== generator & key ============================== -->
+  <div id="view-gen" hidden>
+  <section id="gen-section">
     <section class="card">
       <h2>Generator: paraphrase a story with the watermark</h2>
       <p class="small">A language model (<span id="model-name">…</span>) retells the story. With the watermark on, every next token is picked by a <em>tournament</em> that favors tokens the secret key scores highly. The text reads normally, but it carries a statistical signature.</p>
@@ -271,7 +273,7 @@
           <button id="to-detector" class="ghost">Send to detector again</button>
         </div>
         <details class="small"><summary>System message sent</summary><pre id="gen-system" style="white-space:pre-wrap;margin:6px 0 0"></pre></details>
-        <p class="small" style="margin-bottom:4px">The output has been copied into the detector above. <b>Click any token</b> to see the tournament that chose it, then use <span class="tok">←</span> <span class="tok">→</span> to step through tokens:</p>
+        <p class="small" style="margin-bottom:4px">The output has been copied into the detector on the Demo tab. <b>Click any token</b> to see the tournament that chose it, then use <span class="tok">←</span> <span class="tok">→</span> to step through tokens:</p>
         <div id="chips" class="chips card" style="margin-bottom:12px"></div>
         <div id="tourney" class="card" hidden></div>
       </div>
@@ -319,7 +321,7 @@
       <p>An <b>n-gram</b> is a run of <i>n</i> consecutive tokens. This demo uses <b>n = <span data-v="ngram"></span></b>: each token is judged together with the <span data-v="ctx"></span> tokens before it. That short run is the only context the watermark ever looks at. Change any one of those tokens and the watermark for that position is reshuffled.</p>
 
       <h3 id="i-key">3. The secret key</h3>
-      <p>The key is just a list of <b><span data-v="depth"></span> whole numbers</b>, one per tournament layer (the "depth"; Google's paper also uses 30). You can see this demo's key under "Show the generator &amp; key".</p>
+      <p>The key is just a list of <b><span data-v="depth"></span> whole numbers</b>, one per tournament layer (the "depth"; Google's paper also uses 30). You can see this demo's key on the "Generator &amp; key" tab.</p>
       <ul>
         <li><b>How it was made.</b> <code>scripts/make_keys.py</code> drew each number with Python's <code>secrets.randbelow(2<sup>31</sup>&nbsp;−&nbsp;1)</code>. That is the operating system's cryptographically secure random generator, so the numbers can't be guessed or reproduced. They were saved once to <code>data/keys.json</code> on the server. The script refuses to overwrite an existing key, because a new key makes every earlier watermark undetectable.</li>
         <li><b>The "Random key" button</b> makes a throwaway key the same way, in your browser (<code>crypto.getRandomValues</code>, 31-bit numbers). It is never saved.</li>
@@ -405,7 +407,7 @@
         <li><b>Detector only.</b> Paste a watermarked paraphrase: detected with a large z-score. Paste the human story: no watermark.</li>
         <li><b>Light edit.</b> Change 5 to 10 words and watch the live score fall a little. Which words on the "Most influential words" chart did you change?</li>
         <li><b>Heavy edit, then own words.</b> Reorder and replace; then rewrite from memory. The watermark fades and is gone. Discuss: the watermark lives in exact token sequences, not in meaning.</li>
-        <li><b>Under the hood.</b> Show the generator and the key. Step through the tournament explorer. Try a random key on watermarked text, and then change one key number.</li>
+        <li><b>Under the hood.</b> Open the "Generator &amp; key" tab. Step through the tournament explorer. Try a random key on watermarked text, and then change one key number.</li>
         <li><b>Discussion.</b> What is watermarking good for (catching casual copy-paste, labeling content at scale) and what can't it do (stop a determined paraphraser, detect other models)? Who should hold the keys?</li>
       </ol>
 
@@ -519,13 +521,14 @@ function syncSystem() {
 $("system").oninput = syncSystem;
 $("system-reset").onclick = () => { $("system").value = defaultSystem; syncSystem(); };
 
-// page tabs: Demo / How it works
+// page tabs: Demo / Generator & key / How it works
+const VIEWS = ["demo", "gen", "info"];
 function setView(v) {
+  if (!VIEWS.includes(v)) v = "demo";
   document.querySelectorAll(".pagetabs button").forEach(b => b.setAttribute("aria-selected", b.dataset.view === v));
-  $("view-demo").hidden = v !== "demo";
-  $("view-info").hidden = v !== "info";
-  $("toggle-gen").hidden = v !== "demo";
+  for (const name of VIEWS) $("view-" + name).hidden = name !== v;
   store.set("view", v);
+  // charts are sized from their container, so redraw once the Demo tab is actually visible
   if (v === "demo" && last) { drawBell(last); drawCharts(last); }
 }
 document.querySelectorAll(".pagetabs button").forEach(b => b.onclick = () => setView(b.dataset.view));
@@ -533,14 +536,6 @@ document.querySelectorAll(".pagetabs button").forEach(b => b.onclick = () => set
 function fillInfo(vals) {
   for (const [k, v] of Object.entries(vals)) document.querySelectorAll(`[data-v="${k}"]`).forEach(e => e.textContent = v);
 }
-
-function setGen(open) {
-  $("gen-section").hidden = !open;
-  $("toggle-gen").textContent = open ? "Hide the generator & key" : "Show the generator & key";
-  store.set("genOpen", open ? "1" : "");
-}
-$("toggle-gen").onclick = () => setGen($("gen-section").hidden);
-setGen(store.get("genOpen") === "1");
 
 // ---------------------------------------------------------------- tabs
 let tab = store.get("tab") || "heat";
@@ -880,7 +875,7 @@ function sendToDetector() {
   syncCounts();
   runDetect();
 }
-$("to-detector").onclick = () => { sendToDetector(); $("detector").scrollIntoView({ behavior: "smooth" }); };
+$("to-detector").onclick = () => { sendToDetector(); setView("demo"); $("detector").scrollIntoView({ behavior: "smooth" }); };
 
 function renderChips(d) {
   const box = $("chips"); box.innerHTML = "";
@@ -908,7 +903,7 @@ function selectChip(i) {
 }
 // ← / → step through tokens once one is selected (not while typing in a field)
 addEventListener("keydown", (e) => {
-  if (selChip < 0 || $("gen-section").hidden || $("tourney").hidden) return;
+  if (selChip < 0 || $("view-gen").hidden || $("tourney").hidden) return;
   if (e.target.closest("input, textarea, select") || e.altKey || e.ctrlKey || e.metaKey) return;
   if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
     e.preventDefault();
@@ -946,6 +941,7 @@ function showTourney(st, i) {
 // ---------------------------------------------------------------- secret key -> detector
 $("key-use").onclick = () => {
   setKey(secretKeys.join(", "));
+  setView("demo");
   $("detector").scrollIntoView({ behavior: "smooth" });
 };
 
@@ -958,7 +954,7 @@ $("key").value = store.get("key") || "";
 $("live").checked = store.get("live") !== "0";
 syncKeyUi(); syncCounts();
 setTab(tab);
-setView(store.get("view") === "info" ? "info" : "demo");
+setView(store.get("view") || "demo");
 let rt; addEventListener("resize", () => { clearTimeout(rt); rt = setTimeout(() => { if (last) { drawBell(last); drawCharts(last); } }, 150); });
 </script>
 </body>

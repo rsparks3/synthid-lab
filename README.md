@@ -65,7 +65,7 @@ chance, which is the point: this is a *key* detector, not an "AI detector".
 
 ![The same text scored with a random key reads as no watermark](docs/screenshots/detector-wrong-key.png)
 
-"Show the generator & key" opens the **Generator** (instructor side). Pick or write a ~50-word story,
+The **Generator & key** tab is the instructor side. Pick or write a ~50-word story,
 set temperature, top-k, target length and seed, and paraphrase it with or without the watermark. The
 output goes straight into the detector. Click any output token to see the tournament that chose it:
 the model's own probabilities, how the watermark reweighted them, and the g-value bits per key layer.
@@ -164,7 +164,7 @@ Open `http://<spark-ip>:8090`. The page opens on the detector only. It re-scores
 wrong-key test; empty means the lab's secret key. Tabs show a word heatmap, the z-score building up
 across the text, the most influential words, and a comparison with the original story.
 
-"Show the generator & key" reveals the paraphraser (watermark toggle, temperature / top-k / length /
+The "Generator & key" tab holds the paraphraser (watermark toggle, temperature / top-k / length /
 seed), a per-token tournament view (click a token, then use the arrow keys), and the secret key. Each
 paraphrase is copied into the detector automatically.
 
